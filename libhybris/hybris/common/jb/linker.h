@@ -63,6 +63,9 @@ const char *addr_to_name(unsigned addr);
 
 /* magic shared structures that GDB knows about */
 
+#include <link.h>
+
+#if 0
 struct link_map
 {
     uintptr_t l_addr;
@@ -81,7 +84,6 @@ struct dl_phdr_info
     Elf_Half dlpi_phnum;
 };
 
-
 // Values for r_debug->state
 enum {
     RT_CONSISTENT,
@@ -97,6 +99,7 @@ struct r_debug
     int32_t r_state;
     uintptr_t r_ldbase;
 };
+#endif
 
 typedef struct soinfo soinfo;
 
