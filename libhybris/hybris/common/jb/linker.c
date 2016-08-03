@@ -161,13 +161,15 @@ const char *linker_get_error(void)
  * This function is an empty stub where GDB locates a breakpoint to get notified
  * about linker activity.
  */
-extern void __attribute__((noinline)) rtld_db_dlactivity(void);
+//extern void __attribute__((noinline)) rtld_db_dlactivity(void);
 
-static struct r_debug _r_debug = {1, NULL, &rtld_db_dlactivity,
-                                  RT_CONSISTENT, 0};
+#define rtld_db_dlactivity() ((void (*)(void))_hybris_r_debug.r_brk)()
+
+//static struct r_debug _hybris_r_debug = {1, NULL, &rtld_db_dlactivity,
+//                                  RT_CONSISTENT, 0};
 static struct link_map *r_debug_tail = 0;
 
-static pthread_mutex_t _r_debug_lock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t _hybris_r_debug_lock = PTHREAD_MUTEX_INITIALIZER;
 
 static void insert_soinfo_into_debug_map(soinfo * info)
 {
@@ -190,7 +192,7 @@ static void insert_soinfo_into_debug_map(soinfo * info)
         map->l_prev = r_debug_tail;
         map->l_next = 0;
     } else {
-        _r_debug.r_map = map;
+        _hybris_r_debug.r_map = map;
         map->l_prev = 0;
         map->l_next = 0;
     }
@@ -215,17 +217,17 @@ void notify_gdb_of_load(soinfo * info)
         return;
     }
 
-    pthread_mutex_lock(&_r_debug_lock);
+    pthread_mutex_lock(&_hybris_r_debug_lock);
 
-    _r_debug.r_state = RT_ADD;
+    _hybris_r_debug.r_state = RT_ADD;
     rtld_db_dlactivity();
 
     insert_soinfo_into_debug_map(info);
 
-    _r_debug.r_state = RT_CONSISTENT;
+    _hybris_r_debug.r_state = RT_CONSISTENT;
     rtld_db_dlactivity();
 
-    pthread_mutex_unlock(&_r_debug_lock);
+    pthread_mutex_unlock(&_hybris_r_debug_lock);
 }
 
 void notify_gdb_of_unload(soinfo * info)
@@ -235,27 +237,27 @@ void notify_gdb_of_unload(soinfo * info)
         return;
     }
 
-    pthread_mutex_lock(&_r_debug_lock);
+    pthread_mutex_lock(&_hybris_r_debug_lock);
 
-    _r_debug.r_state = RT_DELETE;
+    _hybris_r_debug.r_state = RT_DELETE;
     rtld_db_dlactivity();
 
     remove_soinfo_from_debug_map(info);
 
-    _r_debug.r_state = RT_CONSISTENT;
+    _hybris_r_debug.r_state = RT_CONSISTENT;
     rtld_db_dlactivity();
 
-    pthread_mutex_unlock(&_r_debug_lock);
+    pthread_mutex_unlock(&_hybris_r_debug_lock);
 }
 
 void notify_gdb_of_libraries()
 {
-    pthread_mutex_lock(&_r_debug_lock);
-    _r_debug.r_state = RT_ADD;
+    pthread_mutex_lock(&_hybris_r_debug_lock);
+    _hybris_r_debug.r_state = RT_ADD;
     rtld_db_dlactivity();
-    _r_debug.r_state = RT_CONSISTENT;
+    _hybris_r_debug.r_state = RT_CONSISTENT;
     rtld_db_dlactivity();
-    pthread_mutex_unlock(&_r_debug_lock);
+    pthread_mutex_unlock(&_hybris_r_debug_lock);
 }
 
 static soinfo *alloc_info(const char *name)
@@ -1846,8 +1848,8 @@ static int link_image(soinfo *si, unsigned wr_offset)
             si->plt_got = (unsigned *)(si->base + *d);
             break;
         case DT_DEBUG:
-            // Set the DT_DEBUG entry to the addres of _r_debug for GDB
-            *d = (int) &_r_debug;
+            // Set the DT_DEBUG entry to the addres of _hybris_r_debug for GDB
+            *d = (int) &_hybris_r_debug;
             break;
          case DT_RELA:
             DL_ERR("%5d DT_RELA not supported", pid);
@@ -2151,7 +2153,7 @@ sanitize:
     map->l_prev = NULL;
     map->l_next = NULL;
 
-    _r_debug.r_map = map;
+    _hybris_r_debug.r_map = map;
     r_debug_tail = map;
 
         /* gdb expects the linker to be in the debug shared object list,
